@@ -2,6 +2,8 @@
 
 This is reproduction code for the paper "Inference in Marginal Structural Models by Automatic Targeted Bayesian and Minimum Loss-Based Estimation", Susmann & Chambaz (2022).
 
+The core algorithms used are implemented in the [`TargetedMSL.jl`](https://github.com/herbps10/TargetedMSM.jl) package.
+
 ## Data
 Data for the illustrative example can be downloaded from the Harvard
 Dataverse: https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/KNNYZN
