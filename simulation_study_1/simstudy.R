@@ -20,13 +20,11 @@ if(task_id == "") stop("Task id not set. Please set SLURM_ARRAY_TASK_ID, or run 
 
 task_id <- as.numeric(task_id)
 
-N_simulations <- 5
+N_simulations <- 2
 simulations <- expand_grid(
-  index = (task_id * N_simulations):((task_id + 1) * N_simulations - 1),
-  #N = c(100, 250, 5e2, 750, 1e3),
-  #N = c(250, 5e2, 1e3),
-  N = 250,
-  scenario = 1,
+  index = ((task_id - 1) * N_simulations + 1):(task_id * N_simulations),
+  N = c(100, 250, 5e2, 750, 1e3),
+  scenario = 1:4,
   linear = FALSE
 )
 
@@ -36,6 +34,6 @@ simulations <- simulations |>
   ) |>
   mutate(
     data = pmap(list(seed, N, linear), simulate_data, sigma = 0.1),
-    path = glue::glue("{cache_path}/{task_id}.rds"),
+    path = glue::glue("{cache_path}/{index}.rds"),
     fits = pmap(list(index, N, linear, scenario, data, path), wrapper)
   )

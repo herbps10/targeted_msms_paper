@@ -8,15 +8,21 @@ wrapper <- function(index, N, linear, scenario, data, path) {
   cached_res <- NULL
   if(file.exists(path)) {
     cached_res <- read_rds(path)
-    if(sum(cached_res$index == index & cached_res$N == N & cached_res$linear == linear & cached_res$scenario == scenario) > 0) return()
+    if(sum(cached_res$N == N & cached_res$linear == linear & cached_res$scenario == scenario) > 0) {
+      print("Cache hit")
+      return()
+    }
+    else {
+      print("No cache")
+    }
   }
 
   print(glue::glue("Starting: {index} {N} {linear} {scenario}"))
 
-  largedat <- simulate_data(seed = 1, N = 1e4, linear = linear)
+  largedat <- simulate_data(seed = 1, N = 1e5, linear = linear)
   true_params <- tibble(
     term = c("(Intercept)", "X4"),
-    true_beta = coef(lm(mu1 - mu0 ~ 1 + X4, data = data))
+    true_beta = coef(lm(mu1 - mu0 ~ 1 + X4, data = largedat))
   )
 
   learners_trt <- learners_outcome <- "SL.random"
@@ -27,6 +33,16 @@ wrapper <- function(index, N, linear, scenario, data, path) {
   if(scenario %in% c(1, 2)) {
     learners_trt <- c("SL.glm.interaction")
   }
+
+  data$mu <- ifelse(data$A == 1, data$mu1, data$mu0)
+
+  nuisance <- list(
+    pi = data$pscore,
+    mu0 = data$mu0,   
+    mu1 = data$mu1,   
+    mu = data$mu,
+    condvar = data$mu * (1 - data$mu)
+  )
 
   fit <- TargetedMSM::treatment_effect_modification(
     data, 
@@ -40,9 +56,10 @@ wrapper <- function(index, N, linear, scenario, data, path) {
     tmle = TRUE,
     tmle_linear = FALSE,
     bayes = TRUE,
-    bayes_draws = 5e3,
+    bayes_draws = 250,
     bayes_prior = \(beta) sum(dnorm(as.numeric(beta), mean = 0, sd = 5, log = TRUE)),
-    epsilon = 1e-5
+    epsilon = 1e-5,
+    outer_folds = 1
   )
 
   res <- tidy(fit) |>

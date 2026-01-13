@@ -24,6 +24,6 @@ export CPUS_PER_TASK=1 # CPU to assign to each task in the array
 
 export MEM_PER_CPU=2GB # Memory assigned per CPU
 
-export TIME=12:00:00 # Job time limit
+export TIME=24:00:00 # Job time limit
 
-export ARRAY=1-100 # Array indexes to run
+export ARRAY=1-1 # Array indexes to run
