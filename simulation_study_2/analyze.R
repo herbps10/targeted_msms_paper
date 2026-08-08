@@ -23,22 +23,18 @@ remove_dups <- \(x) {
   x
 }
 
-if(FALSE) {
-  tab <- results_summarized |>
-    select(N, estimator, term, coverage, mae) |>
-    mutate(
-      term = ifelse(term == "X4", "beta2", "beta1"),
-      estimator = case_when(
-        estimator == "tmle" ~ "2 TMLE",
-        estimator == "bayestmle" ~ "3 Bayes TMLE",
-        estimator == "onestep" ~ "1 One-step"
-      )
-    ) |>
-    pivot_wider(names_from = c("term"), values_from = c("coverage", "mae")) |>
-    arrange(N, estimator) |>
-    mutate(estimator = str_replace(estimator, "[0-9] ", "")) |>
-    select(N, estimator, coverage_beta1, mae_beta1, coverage_beta2, mae_beta2) |>
-    mutate_at(vars(starts_with("coverage")), scales::percent_format(accuracy = 0.1)) |>
-    mutate_at(vars(starts_with("mae")), scales::number_format(accuracy = 0.01)) |>
-    mutate_at(vars(N), remove_dups)
-}
+tab <- results_summarized |>
+  select(N, estimator, term, coverage, mae) |>
+  mutate(
+    term = stringr::str_sub(term, -1),
+    estimator = case_when(
+      estimator == "tmle" ~ "TMLE",
+      estimator == "onestep" ~ "Onestep"
+    )
+  ) |>
+  pivot_wider(names_from = "estimator", values_from = c("coverage", "mae")) |>
+  arrange(N)  |>
+  mutate_at(vars(starts_with("coverage")), scales::percent_format(accuracy = 0.1)) |>
+  mutate_at(vars(starts_with("mae")), scales::number_format(accuracy = 0.01)) |>
+  mutate_at(vars(N), remove_dups) |>
+  knitr::kable(format = "latex", booktabs = TRUE, linesep = "")

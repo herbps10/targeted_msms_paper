@@ -1,4 +1,4 @@
-library(TargetedMSM)
+library(automsm)
 library(broom)
 library(torch)
 
@@ -29,7 +29,7 @@ wrapper <- function(index, N, treatments, sigma, linear, data, path) {
   learners_trt <- c("SL.ranger", "SL.glm", "SL.glm.interaction", "SL.earth")
   learners_outcome <- c("SL.ranger", "SL.glm", "SL.glm.interaction", "SL.earth")
 
-  fit <- TargetedMSM::categorical_dose_response(
+  fit <- automsm::dose_response(
     data, 
     c("x1", "x2", "x3"), "a", "y", 
     formula = ~-1 + splines::bs(a, knots = seq(1, treatments, length.out = n_knots)[-n_knots], Boundary.knots = c(1, treatments)),

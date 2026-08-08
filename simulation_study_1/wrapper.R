@@ -1,4 +1,4 @@
-library(TargetedMSM)
+library(automsm)
 library(broom)
 library(torch)
 
@@ -44,7 +44,7 @@ wrapper <- function(index, N, linear, scenario, data, path) {
     condvar = data$mu * (1 - data$mu)
   )
 
-  fit <- TargetedMSM::treatment_effect_modification(
+  fit <- automsm::cate(
     data, 
     c("X1", "X2", "X3", "X4"), "A", "Y", 
     formula = ~ 1 + X4,

@@ -26,4 +26,4 @@ export MEM_PER_CPU=2GB # Memory assigned per CPU
 
 export TIME=24:00:00 # Job time limit
 
-export ARRAY=1-1 # Array indexes to run
+export ARRAY=199 # Array indexes to run
