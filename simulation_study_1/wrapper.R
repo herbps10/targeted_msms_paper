@@ -2,6 +2,21 @@ library(automsm)
 library(broom)
 library(torch)
 
+SL.random <- function (Y, X, newX, family, obsWeights, id, ...) 
+{
+  meanY <- weighted.mean(Y, w = obsWeights)
+  pred <- runif(nrow(newX), 0.1, 0.9)
+  fit <- list(object = meanY)
+  out <- list(pred = pred, fit = fit)
+  class(out$fit) <- c("SL.random")
+  return(out)
+}
+
+predict.SL.random <- function (object, newdata, family, X = NULL, Y = NULL, ...) 
+{
+    runif(nrow(newdata), 0.1, 0.9)
+}
+
 wrapper <- function(index, N, linear, scenario, data, path) {
   # Check cache
   if(!file.exists(dirname(path))) dir.create(dirname(path), recursive = TRUE)
@@ -34,37 +49,40 @@ wrapper <- function(index, N, linear, scenario, data, path) {
     learners_trt <- c("SL.glm.interaction")
   }
 
-  data$mu <- ifelse(data$A == 1, data$mu1, data$mu0)
-
-  nuisance <- list(
-    pi = data$pscore,
-    mu0 = data$mu0,   
-    mu1 = data$mu1,   
-    mu = data$mu,
-    condvar = data$mu * (1 - data$mu)
-  )
-
+  set.seed(10016)
+  start_time <- Sys.time()
   fit <- automsm::cate(
     data, 
     c("X1", "X2", "X3", "X4"), "A", "Y", 
     formula = ~ 1 + X4,
-    learners_outcome = learners_outcome, 
-    learners_trt = learners_trt,
     loss = loss_squared_error,
     working_model = working_model_linear,
     outcome_type = "binomial",
-    tmle = TRUE,
-    tmle_linear = FALSE,
-    bayes = TRUE,
-    bayes_draws = 250,
-    bayes_prior = \(beta) sum(dnorm(as.numeric(beta), mean = 0, sd = 5, log = TRUE)),
-    epsilon = 1e-5,
-    outer_folds = 1
+    tmle = tmle_control(
+      criterion = "epsilon",
+      fluctuation = "logistic"
+    ),
+    bayes = bayes_control(
+      chains = 4,
+      warmup = 500,
+      draws = 500,
+      prior = \(beta) sum(dnorm(as.numeric(beta), mean = 0, sd = 5, log = TRUE)),
+      eps_max = 100,
+      fluctuation = "logistic"
+    ),
+    nuisance = nuisance_control(
+      learners_outcome = learners_outcome, 
+      learners_trt = learners_trt,
+      epsilon = 1e-5,
+      outer_folds = 1
+    )
   )
+  total_time <- Sys.time() - start_time
 
   res <- tidy(fit) |>
-    mutate(scenario = scenario, simulation_index = index, N = N, linear = linear, path = path) |>
-    left_join(true_params)
+    mutate(scenario = scenario, simulation_index = index, N = N, linear = linear, path = path, total_time = total_time) |>
+    left_join(true_params) |>
+    left_join(tibble(estimator = "bayes", rejected = mean(fit$bayes_tmle$rejected)))
 
   if(is.null(cached_res)) {
     write_rds(res, path)
@@ -76,17 +94,4 @@ wrapper <- function(index, N, linear, scenario, data, path) {
   return()
 }
 
-SL.random <- function (Y, X, newX, family, obsWeights, id, ...) 
-{
-  meanY <- weighted.mean(Y, w = obsWeights)
-  pred <- runif(nrow(newX), 0.1, 0.9)
-  fit <- list(object = meanY)
-  out <- list(pred = pred, fit = fit)
-  class(out$fit) <- c("SL.random")
-  return(out)
-}
 
-predict.SL.random <- function (object, newdata, family, X = NULL, Y = NULL, ...) 
-{
-    runif(nrow(newdata), 0.1, 0.9)
-}

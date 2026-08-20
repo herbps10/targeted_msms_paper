@@ -7,6 +7,7 @@
 #SBATCH --partition cpu_short
 #SBATCH --array=1-100
 
+
 module load apptainer/1.4.5
 
 source env.sh

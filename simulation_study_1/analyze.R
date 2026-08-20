@@ -1,4 +1,7 @@
-library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(stringr)
 library(kableExtra)
 
 root <- rprojroot::is_git_root
@@ -14,8 +17,21 @@ simulations <- read_rds(glue::glue("{results_path}/simulation_results.rds"))
 results_summarized <- simulations |>
   mutate(error = true_beta - estimate, covered = conf.low <= true_beta & conf.high >= true_beta) |>
   group_by(scenario, estimator, N, linear, term) |>
-  summarize(n = n(), se = mean(std.error), me = mean(error, na.rm = TRUE), mse = mean(error^2, na.rm = TRUE), mae = mean(abs(error), na.rm = TRUE), coverage = mean(covered, na.rm = TRUE), na = mean(is.na(estimate))) |>
-  ungroup()
+  summarize(
+    n = n(), 
+    se = mean(std.error), 
+    me = mean(error, na.rm = TRUE), 
+    mse = mean(error^2, na.rm = TRUE), 
+    mae = mean(abs(error), na.rm = TRUE), 
+    coverage = mean(covered, na.rm = TRUE), 
+    na = mean(is.na(estimate)),
+    mean_time = mean(total_time)
+  ) |>
+  ungroup() |>
+  mutate(
+    coverage.low = map2_dbl(coverage, n, \(p, n) prop.test(p * n, n, 0.95)$conf.int[1]),
+    coverage.high = map2_dbl(coverage, n, \(p, n) prop.test(p * n, n, 0.95)$conf.int[2])
+  )
 
 remove_dups <- \(x) {
   x[x == lag(x)] <- ""
@@ -28,7 +44,7 @@ tab <- results_summarized |>
     term = ifelse(term == "X4", "beta2", "beta1"),
     estimator = case_when(
       estimator == "tmle" ~ "2 TMLE",
-      estimator == "bayestmle" ~ "3 Bayes TMLE",
+      estimator == "bayes" ~ "3 Bayes TMLE",
       estimator == "onestep" ~ "1 One-step"
     )
   ) |>

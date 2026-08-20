@@ -2,7 +2,12 @@
 # Simulation Study
 #
 
-library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(purrr)
+library(readr)
+
+torch::install_torch()
 
 root <- rprojroot::is_git_root
 basepath <- root$find_file("simulation_study_1")
@@ -20,11 +25,11 @@ if(task_id == "") stop("Task id not set. Please set SLURM_ARRAY_TASK_ID, or run 
 
 task_id <- as.numeric(task_id)
 
-N_simulations <- 2
+N_simulations <- 5
 simulations <- expand_grid(
   index = ((task_id - 1) * N_simulations + 1):(task_id * N_simulations),
-  N = c(100, 250, 5e2, 750, 1e3),
   scenario = 1:4,
+  N = c(100, 250, 5e2, 750, 1e3),
   linear = FALSE
 )
 

@@ -13,6 +13,7 @@ usage() {
   echo "  status    Print current job status"
   echo "  watch     Watch current job status"
   echo "  repl      Start interactive job"
+  echo "  r         Start interactive R session"
   echo "  logs      Print all logs"
   echo "  cache     List existing cache files"
   echo "  setup     Create cache and log directories"
@@ -96,6 +97,19 @@ case "$1" in
 
   repl)
     srun -p $PARTITION --ntasks=1 --ntasks-per-node=1 --cpus-per-task=1 --mem-per-cpu=16G -t 00-06:00:00 --pty bash
+    ;;
+  
+  r)
+    srun -p $PARTITION --ntasks=1 --ntasks-per-node=1 --cpus-per-task=1 --mem-per-cpu=16G -t 00-06:00:00 --pty \
+      bash -c '
+      export APPTAINERENV_TMPDIR=/gpfs/scratch/susmah01/tmp;
+      module load apptainer/1.4.5 && apptainer exec \
+        --bind /gpfs/home/susmah01 \
+        --bind /gpfs/data/diazi07lab \
+        --bind /gpfs/scratch/susmah01 \
+        /gpfs/data/diazi07lab/containers/ml_latest.sif \
+        R
+      '
     ;;
 
   logs)

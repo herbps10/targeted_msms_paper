@@ -6,7 +6,7 @@ library(readr)
 library(purrr)
 
 root <- rprojroot::is_git_root
-basepath <- root$find_file("simulation_study_1")
+basepath <- root$find_file("simulation_study_3")
 
 source(glue::glue("{basepath}/env.R"))
 
@@ -18,10 +18,14 @@ if(results_path == "") stop("Please set SIMULATION_RESULTS_PATH environment vari
 
 files <- Sys.glob(glue::glue("{cache_path}/*.rds"))
 
+safe_read_rds <- function(file) {
+  tryCatch(read_rds(file), error = function(e) cat("Could not read file: ", file, "\n", NULL))
+}
+
 if(length(files) == 0) {
   cat("Warning: no cached simulation results found.\n\n")
 } else {
-  results <- map_df(files, read_rds) |> dplyr::bind_rows()
+  results <- map_df(files, safe_read_rds) |> dplyr::bind_rows()
   results_path <- glue::glue("{results_path}/simulation_results.rds")
   write_rds(results, file = results_path, compress = "gz")
   cat(glue::glue("Simulation results saved to {results_path}\n\n"))

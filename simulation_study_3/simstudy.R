@@ -1,11 +1,16 @@
 #
-# Simulation Study
+# Simulation Study 3
 #
 
-library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(purrr)
+library(readr)
+
+torch::install_torch()
 
 root <- rprojroot::is_git_root
-basepath <- root$find_file("simulation_study_2")
+basepath <- root$find_file("simulation_study_3")
 
 # Load simulation files
 source(glue::glue("{basepath}/simulate.R"))
@@ -22,11 +27,11 @@ task_id <- as.numeric(task_id)
 
 N_simulations <- 5
 simulations <- expand_grid(
+  N = c(250, 500, 1e3, 2.5e3, 5e3),
+  tau = c(1:5),
+  beta0 = -1,
+  beta1 = 0.5,
   index = ((task_id - 1) * N_simulations + 1):(task_id * N_simulations),
-  N = c(500, 1000, 2.5e3),
-  treatments = 25,
-  sigma = 0.25,
-  linear = TRUE
 )
 
 simulations <- simulations |>
@@ -34,7 +39,8 @@ simulations <- simulations |>
     seed = index
   ) |>
   mutate(
-    data = pmap(list(seed, N, treatments, sigma, linear), simulate_data),
-    path = glue::glue("{cache_path}/{index}.rds"),
-    fits = pmap(list(index, N, treatments, sigma, linear, data, path), wrapper)
+    data = pmap(list(seed, N, tau, beta0, beta1), simulate_data),
+    path = glue::glue("{cache_path}/{task_id}.rds"),
+    fits = pmap(list(index, N, tau, beta0, beta1, data, path), wrapper)
   )
+
