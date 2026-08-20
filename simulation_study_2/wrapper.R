@@ -20,7 +20,7 @@ wrapper <- function(index, N, treatments, sigma, linear, data, path) {
   print(glue::glue("Starting: {index} {N} {linear} {path}"))
 
   n_knots <- 5
-  true_beta <- lm(mu ~ -1 + splines::bs(a, knots = seq(1, treatments, length.out = n_knots)[-c(1, n_knots)], Boundary.knots = c(1, treatments)), data = tibble(a = 1:treatments, mu = 2 / a + 1 / (treatments - a + 1)))
+  true_beta <- lm(mu ~ -1 + splines::bs(a, knots = seq(1, treatments, length.out = n_knots)[-c(n_knots)], Boundary.knots = c(1, treatments)), data = tibble(a = 1:treatments, mu = 2 / a + 1 / (treatments - a + 1)))
   true_params <- tibble(
     term = names(coef(true_beta)),
     true_beta = coef(true_beta)
@@ -38,7 +38,7 @@ wrapper <- function(index, N, treatments, sigma, linear, data, path) {
   fit <- automsm::dose_response(
     data, 
     c("x1", "x2", "x3"), "a", "y", 
-    formula = ~-1 + splines::bs(a, knots = seq(1, treatments, length.out = n_knots)[-c(1, n_knots)], Boundary.knots = c(1, treatments)),
+    formula = ~-1 + splines::bs(a, knots = seq(1, treatments, length.out = n_knots)[-c(n_knots)], Boundary.knots = c(1, treatments)),
     nuisance = nuisance,
     outcome_type = "continuous",
     tmle = TRUE
