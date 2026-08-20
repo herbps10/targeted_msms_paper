@@ -33,6 +33,8 @@ results_summarized <- simulations |>
     coverage.high = map2_dbl(coverage, n, \(p, n) prop.test(p * n, n, 0.95)$conf.int[2])
   )
 
+write_rds(results_summarized, "results/results_summarized.rds")
+
 remove_dups <- \(x) {
   x[x == lag(x)] <- ""
   x
