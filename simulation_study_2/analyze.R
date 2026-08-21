@@ -21,6 +21,8 @@ results_summarized <- simulations |>
   summarize(n = n(), se = mean(std.error), me = mean(error, na.rm = TRUE), mse = mean(error^2, na.rm = TRUE), mae = mean(abs(error), na.rm = TRUE), coverage = mean(covered, na.rm = TRUE), na = mean(is.na(estimate)), observed_sd = sd(estimate)) |>
   ungroup()
 
+write_rds(results_summarized, glue::glue("{results_path}/results_summarized.rds"))
+
 remove_dups <- \(x) {
   x[x == lag(x)] <- ""
   x
