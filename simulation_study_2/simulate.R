@@ -15,7 +15,7 @@ simulate_data <- function(seed = 1, N = 1e3, treatments = 25, sigma = 0.1, linea
   for(i in 1:N) {
     prob <- rep(1, treatments)
     if(x1[i] < 0) {
-      prob[1:(floor(treatments) / 2)] <- 3
+      prob[1:(floor(treatments / 2))] <- 3
     }
     a[i] <- sample(1:treatments, 1, replace = TRUE, prob = prob)
   }

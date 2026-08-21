@@ -12,10 +12,13 @@ if(results_path == "") stop("Please set SIMULATION_RESULTS_PATH environment vari
 simulations <- read_rds(glue::glue("{results_path}/simulation_results.rds")) 
 
 results_summarized <- simulations |>
-  mutate(estimate = ifelse(is.nan(estimate), NA, estimate)) |>
+  mutate(
+    estimate = ifelse(is.nan(estimate), NA, estimate),
+    term = stringr::str_sub(term, -1)
+  ) |>
   mutate(error = true_beta - estimate, covered = conf.low <= true_beta & conf.high >= true_beta) |>
-  group_by(estimator, N, linear, term) |>
-  summarize(n = n(), se = mean(std.error), me = mean(error, na.rm = TRUE), mse = mean(error^2, na.rm = TRUE), mae = mean(abs(error), na.rm = TRUE), coverage = mean(covered, na.rm = TRUE), na = mean(is.na(estimate))) |>
+  group_by(nuisance, estimator, N, linear, term) |>
+  summarize(n = n(), se = mean(std.error), me = mean(error, na.rm = TRUE), mse = mean(error^2, na.rm = TRUE), mae = mean(abs(error), na.rm = TRUE), coverage = mean(covered, na.rm = TRUE), na = mean(is.na(estimate)), observed_sd = sd(estimate)) |>
   ungroup()
 
 remove_dups <- \(x) {
@@ -24,7 +27,7 @@ remove_dups <- \(x) {
 }
 
 tab <- results_summarized |>
-  select(N, estimator, term, coverage, mae) |>
+  select(nuisance, N, estimator, term, coverage, mae) |>
   mutate(
     term = stringr::str_sub(term, -1),
     estimator = case_when(

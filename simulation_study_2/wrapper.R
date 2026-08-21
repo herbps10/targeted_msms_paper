@@ -2,6 +2,28 @@ library(automsm)
 library(broom)
 library(torch)
 
+oracle_sim2 <- function(data, K = 25, sigma = 0.1) {
+  n <- nrow(data)
+  pi_a <- matrix(1/K, n, K)
+  low <- data$x1 < 0
+  pi_a[low, 1:12]  <- 3/49
+  pi_a[low, 13:K]  <- 1/49
+  k <- seq_len(K)
+  mu_a <- outer(data$x1, rep(1, K)) +
+          matrix(2/k + 1/(K - k + 1), n, K, byrow = TRUE)
+
+  idx <- cbind(seq_len(n), match(data$a, sort(unique(data$a))))
+
+  list(
+    pi = pi_a[idx], 
+    pi_a = pi_a, 
+    mu = mu_a[idx], 
+    mu_a = mu_a,
+    condvar = rep(0, n),
+    condvar_a = matrix(0, n, K)
+  )
+}
+
 wrapper <- function(index, N, treatments, sigma, linear, data, path) {
   # Check cache
   if(!file.exists(dirname(path))) dir.create(dirname(path), recursive = TRUE)
@@ -32,6 +54,7 @@ wrapper <- function(index, N, treatments, sigma, linear, data, path) {
   nuisance <- automsm::nuisance_control(
     learners_trt = learners_trt,
     learners_outcome = learners_outcome,
+    outer_folds = 5,
     epsilon = 1e-3
   )
 
@@ -41,10 +64,24 @@ wrapper <- function(index, N, treatments, sigma, linear, data, path) {
     formula = ~-1 + splines::bs(a, knots = seq(1, treatments, length.out = n_knots)[-c(n_knots)], Boundary.knots = c(1, treatments)),
     nuisance = nuisance,
     outcome_type = "continuous",
-    tmle = TRUE
+    tmle = tmle_control(criterion = "epsilon")
   )
 
-  res <- tidy(fit) |>
+  fit_oracle <- automsm::dose_response(
+    data, 
+    c("x1", "x2", "x3"), "a", "y", 
+    formula = ~-1 + splines::bs(a, knots = seq(1, treatments, length.out = n_knots)[-c(n_knots)], Boundary.knots = c(1, treatments)),
+    nuisance_estimates = oracle_sim2(data, treatments, sigma),
+    outcome_type = "continuous",
+    tmle = tmle_control(criterion = "epsilon")
+  )
+
+  res <- bind_rows(
+    tidy(fit) |> mutate(nuisance = "estimated") |>
+      left_join(tibble(estimator = "tmle", solved = fit$tmle$solved)),
+    tidy(fit_oracle) |> mutate(nuisance = "oracle") |> 
+      left_join(tibble(estimator = "tmle", solved = fit_oracle$tmle$solved))
+  ) |>
     mutate(
       simulation_index = index, 
       N = N, 

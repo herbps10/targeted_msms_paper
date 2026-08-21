@@ -19,17 +19,14 @@ wrapper <- function(index, N, tau, beta0, beta1, data, path) {
     }
   }
 
-
   true_msm <- compute_true_msm(
     tau = tau,
     beta0 = beta0,
     beta1 = beta1,
-    N_inner = 1e4,
+    N_inner = 5e4,
     seed = 10016
   )
 
-  #learners_trt <- c("SL.glm", "SL.glm.interaction")
-  #learners_outcome <- c("SL.glm", "SL.glm.interaction")
   learners_trt <- c("SL.glm")
   learners_outcome <- c("SL.glm")
 
@@ -49,7 +46,7 @@ wrapper <- function(index, N, tau, beta0, beta1, data, path) {
     summary_measures = function(regimes) data.frame(v = rowSums(regimes)),
     formula = ~1 + v,
     loss = loss_cross_entropy_logit,
-    outcome = "binomial",
+    outcome_type = "binomial",
     tmle = tmle_control(eif_tol = 0.05),
     nuisance = nuisance_control(
       learners_outcome = learners_outcome, 
@@ -58,8 +55,28 @@ wrapper <- function(index, N, tau, beta0, beta1, data, path) {
   )
   automsm_time <- Sys.time() - start_time
 
+  start_time <- Sys.time()
+  fit_linear = automsm::longitudinal_dose_response(
+    data, 
+    Ls,
+    As,
+    "Y",
+    regimes = regimes,
+    summary_measures = function(regimes) data.frame(v = rowSums(regimes)),
+    formula = ~1 + v,
+    loss = loss_squared_error,
+    outcome_type = "binomial",
+    tmle = tmle_control(eif_tol = 0.05),
+    nuisance = nuisance_control(
+      learners_outcome = learners_outcome, 
+      learners_trt = learners_trt
+    )
+  )
+  linear_automsm_time <- Sys.time() - start_time
+
   automsm_res <- tidy(fit) |>
     mutate(
+      msm_loss = "crossentropy",
       simulation_index = index, 
       term = ifelse(term == "(Intercept)", term, "v"),
       N = N, 
@@ -70,19 +87,8 @@ wrapper <- function(index, N, tau, beta0, beta1, data, path) {
       true_values = rep(true_msm$beta_true, 2),
       time = automsm_time
     ) |>
-    left_join(tibble(
-      estimator = "tmle",
-      term = c("(Intercept)", "v"),
-      eif_mean = colMeans(fit$tmle$eif),
-      iter = fit$tmle$iter,
-      converged = fit$tmle$converged
-    )) |>
-    left_join(tibble(
-      estimator = "onestep",
-      term = c("(Intercept)", "v"),
-      eif_mean = colMeans(fit$onestep$eif),
-    )) |>
     bind_rows(tibble(
+      msm_loss = "crossentropy",
       simulation_index = index,
       term = c("(Intercept)", "v"),
       N = N,
@@ -91,6 +97,34 @@ wrapper <- function(index, N, tau, beta0, beta1, data, path) {
       beta1 = beta1,
       path = path,
       true_values = true_msm$beta_true,
+      time = automsm_time,
+      estimator = "plugin",
+      estimate = fit$plugin$est
+    ))
+
+  linear_automsm_res <- tidy(fit_linear) |>
+    mutate(
+      msm_loss = "squarederror",
+      simulation_index = index, 
+      term = ifelse(term == "(Intercept)", term, "v"),
+      N = N, 
+      tau = tau,
+      beta0 = beta0,
+      beta1 = beta1,
+      path = path,
+      true_values = rep(true_msm$beta_lsq, 2),
+      time = linear_automsm_time
+    ) |>
+    bind_rows(tibble(
+      msm_loss = "squarederror",
+      simulation_index = index,
+      term = c("(Intercept)", "v"),
+      N = N,
+      tau = tau,
+      beta0 = beta0,
+      beta1 = beta1,
+      path = path,
+      true_values = true_msm$beta_lsq,
       time = automsm_time,
       estimator = "plugin",
       estimate = fit$plugin$est
@@ -124,6 +158,7 @@ wrapper <- function(index, N, tau, beta0, beta1, data, path) {
     msm.weights = NULL,
     SL.library = list(Q = learners_outcome, g = learners_trt),
     estimate.time = FALSE,
+    variance.method = "ic",
     SL.cvControl = list(V = 5)
   )
   ltmle_time <- Sys.time() - start_time
@@ -132,6 +167,7 @@ wrapper <- function(index, N, tau, beta0, beta1, data, path) {
   ltmle_coefs <- ltmle_summary$cmat
 
   ltmle_res <- tibble::tibble(
+    msm_loss = "crossentropy",
     simulation_index = index,
     term = rownames(ltmle_coefs),
     estimate = ltmle_coefs[, "Estimate"],
@@ -149,6 +185,7 @@ wrapper <- function(index, N, tau, beta0, beta1, data, path) {
   )
 
   res <- bind_rows(automsm_res, ltmle_res)
+  res <- bind_rows(res, linear_automsm_res)
 
   if(is.null(cached_res)) {
     write_rds(res, path)
