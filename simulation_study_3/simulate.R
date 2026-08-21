@@ -14,7 +14,7 @@ compute_true_msm <- function(
   tau = 3,
   beta0 = -1,
   beta1 = 0.5,
-  N_inner = 1e4,
+  N_inner = 2e4,
   seed = 10016
 ) {
   set.seed(seed)
@@ -47,12 +47,12 @@ compute_true_msm <- function(
     regimes$psi[r] <- mean(p_Y)
   }
 
-  # B(P): unweighted least-squares projection of psi onto (1, v)
-  # summing equally over all 2^tau regimes
   fit <- glm(psi ~ 1 + v, data = regimes, family = binomial)
+  fit_lsq <- glm(psi ~ 1 + v, data = regimes)
 
   list(
     beta_true = coef(fit),
+    beta_lsq = coef(fit_lsq),
     regime_table = regimes,
     n_inner = N_inner
   )

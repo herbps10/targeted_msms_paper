@@ -23,7 +23,7 @@ task_id <- as.numeric(task_id)
 N_simulations <- 5
 simulations <- expand_grid(
   index = ((task_id - 1) * N_simulations + 1):(task_id * N_simulations),
-  N = c(500, 1000, 2.5e3),
+  N = c(500, 1000, 2.5e3, 5e3),
   treatments = 25,
   sigma = 0.25,
   linear = TRUE
